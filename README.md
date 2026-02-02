@@ -9,6 +9,7 @@ logs raw events, and displays student transcripts.
 
 ```
 OPENAI_API_KEY=sk-...
+TEACHER_PASSWORD=change-me
 ```
 
 2. Install dependencies and run the dev server:
@@ -44,3 +45,7 @@ data/reports/<sessionId>.json
 
 The report includes the parsed transcript, the tutor's internal assessment, and a
 backend-generated summary.
+
+## Teacher Dashboard
+
+Visit `/teacher`, enter the `TEACHER_PASSWORD`, and browse reports by session ID.
