@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 type ReportSummary = {
   sessionId: string;
+  studentName: string;
+  studentEmail: string;
   generatedAt: string;
   mastery_level: string;
   confidence: number;
@@ -12,6 +14,11 @@ type ReportSummary = {
 type ReportPayload = {
   sessionId: string;
   generatedAt: string;
+  student?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+  };
   assessment?: any;
   report?: any;
   transcript?: Array<{ role: string; text: string; ts: number }>;
@@ -187,7 +194,10 @@ export default function TeacherDashboard() {
                     }}
                   >
                     <div>
-                      <div className="mono">{report.sessionId}</div>
+                      <div>{report.studentName || "Unknown student"}</div>
+                      <div className="muted">
+                        {report.studentEmail || report.sessionId}
+                      </div>
                       <div className="muted">{formatDate(report.generatedAt)}</div>
                     </div>
                     <div className="pill mono">
@@ -218,6 +228,12 @@ export default function TeacherDashboard() {
             {selectedReport ? (
               <div className="report-detail">
                 <div className="pill-row">
+                  <span className="pill mono">
+                    {`${selectedReport.student?.first_name ?? ""} ${
+                      selectedReport.student?.last_name ?? ""
+                    }`.trim() || "Unknown student"}
+                  </span>
+                  <span className="pill mono">{selectedReport.student?.email ?? "no email"}</span>
                   <span className="pill mono">{selectedReport.sessionId}</span>
                   <span className="pill">{formatDate(selectedReport.generatedAt)}</span>
                 </div>

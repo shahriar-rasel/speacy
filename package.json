@@ -10,6 +10,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.4.1",
+    "@supabase/supabase-js": "^2.93.3",
     "next": "^15.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

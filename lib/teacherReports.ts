@@ -3,6 +3,8 @@ import path from "path";
 
 type ReportSummary = {
   sessionId: string;
+  studentName: string;
+  studentEmail: string;
   generatedAt: string;
   mastery_level: string;
   confidence: number;
@@ -23,8 +25,14 @@ export async function listReportSummaries(): Promise<ReportSummary[]> {
       const raw = await fs.readFile(path.join(reportsDir, file), "utf8");
       const payload = JSON.parse(raw) as any;
       if (!payload?.sessionId) continue;
+      const firstName = payload.student?.first_name ?? "";
+      const lastName = payload.student?.last_name ?? "";
+      const studentName = `${firstName} ${lastName}`.trim();
+      const studentEmail = payload.student?.email ?? "";
       summaries.push({
         sessionId: payload.sessionId,
+        studentName,
+        studentEmail,
         generatedAt: payload.generatedAt ?? "",
         mastery_level: payload.report?.mastery_level ?? payload.assessment?.mastery_level ?? "",
         confidence: payload.report?.confidence ?? payload.assessment?.confidence ?? 0,

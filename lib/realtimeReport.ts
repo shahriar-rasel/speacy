@@ -15,6 +15,13 @@ type AssessmentSummary = {
   confidence: number;
 };
 
+type StudentInfo = {
+  id: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+} | null;
+
 type ReportOutput = {
   summary: string;
   strengths: string[];
@@ -121,7 +128,8 @@ const safeParseJson = (text: string): ReportOutput | null => {
 
 export async function generateReport(
   sessionId: string,
-  assessment: AssessmentSummary | null
+  assessment: AssessmentSummary | null,
+  student: StudentInfo
 ) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -195,6 +203,7 @@ ${assessment ? JSON.stringify(assessment, null, 2) : "(none)"}
   const reportPayload = {
     sessionId: safeId,
     generatedAt: new Date().toISOString(),
+    student,
     assessment,
     transcript,
     report,

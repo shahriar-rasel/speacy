@@ -112,9 +112,24 @@ main {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 40px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.hero-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   align-items: center;
+  position: sticky;
+  top: 24px;
 }
 
 .hero-copy {
@@ -221,6 +236,28 @@ h1 {
   backdrop-filter: blur(14px);
 }
 
+.auth-card {
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notice {
+  padding: 12px 14px;
+  background: rgba(94, 234, 212, 0.12);
+  border: 1px solid rgba(94, 234, 212, 0.25);
+  border-radius: 12px;
+  color: #d1fae5;
+}
+
 .dashboard {
   display: flex;
   flex-direction: column;
@@ -315,12 +352,60 @@ h1 {
   color: var(--ink-dim);
 }
 
-.hero-visual {
+.panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.panel-header {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding-top: 50px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.panel-subtitle {
+  font-size: 12px;
+  color: var(--ink-dim);
+  margin-top: 2px;
+}
+
+.transcript-panel,
+.code-panel {
+  min-height: 320px;
+}
+
+.transcript-panel .ai-script {
+  max-height: 360px;
+}
+
+.code-panel .code-editor {
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  background: rgba(8, 12, 22, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #d7f9ff;
+  outline: none;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
 }
 
 .portrait {
@@ -426,13 +511,18 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .hero-visual {
+  .hero-right {
     order: -1;
+    position: static;
   }
 
   .portrait {
     width: 220px;
     height: 220px;
+  }
+
+  .panels {
+    grid-template-columns: 1fr;
   }
 
   .metrics-grid {

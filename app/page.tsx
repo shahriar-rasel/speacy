@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type RealtimeEvent = {
   type?: string;
@@ -66,7 +68,17 @@ const getTextDelta = (event: RealtimeEvent) => {
   return null;
 };
 
+const extractCodeBlock = (text: string) => {
+  const match = text.match(/```(?:python)?\n([\s\S]*?)```/);
+  if (!match) return null;
+  return match[1].trim();
+};
+
+const DEFAULT_CODE_SNIPPET =
+  "# Awaiting the next snippet...\n\nnumbers = [1, 2, 3]\nprint(numbers[0])";
+
 export default function Home() {
+  const router = useRouter();
   const [status, setStatus] = useState<SessionState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [eventCount, setEventCount] = useState(0);
@@ -74,6 +86,7 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [assistantText, setAssistantText] = useState("");
   const [assistantLines, setAssistantLines] = useState<string[]>([]);
+  const [codeSnippet, setCodeSnippet] = useState<string>(DEFAULT_CODE_SNIPPET);
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [reportStatus, setReportStatus] = useState<
     "idle" | "generating" | "ready" | "error"
@@ -85,6 +98,7 @@ export default function Home() {
   const dcRef = useRef<RTCDataChannel | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transcriptRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const initialId = crypto.randomUUID();
@@ -110,6 +124,30 @@ export default function Home() {
       });
     } catch {
       // Logging should never block the session.
+    }
+  };
+
+  const sendClientEvent = (event: RealtimeEvent) => {
+    const channel = dcRef.current;
+    if (!channel || channel.readyState !== "open") return false;
+    channel.send(JSON.stringify(event));
+    void logEvent("client", event);
+    return true;
+  };
+
+  const sendCodeUpdate = () => {
+    if (!codeSnippet) return;
+    const message = `Updated code snippet:\n\n\`\`\`python\n${codeSnippet}\n\`\`\`\n\nAsk the student to edit the code by adding or changing something related to lists and tuples, then explain the change.`;
+    const created = sendClientEvent({
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "user",
+        content: [{ type: "input_text", text: message }],
+      },
+    });
+    if (created) {
+      sendClientEvent({ type: "response.create" });
     }
   };
 
@@ -195,6 +233,11 @@ export default function Home() {
         if (last === textDelta) return prev;
         return [...prev, textDelta];
       });
+
+      const extracted = extractCodeBlock(textDelta);
+      if (extracted) {
+        setCodeSnippet(extracted);
+      }
     }
 
     const assessmentArgs = parseAssessment(event);
@@ -218,6 +261,7 @@ export default function Home() {
     setEventCount(0);
     setAssistantText("");
     setAssistantLines([]);
+    setCodeSnippet(DEFAULT_CODE_SNIPPET);
     setAiSpeaking(false);
     setReportStatus("idle");
     reportTriggeredRef.current = false;
@@ -313,6 +357,16 @@ export default function Home() {
     setStatus(nextStatus);
   };
 
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/auth/login");
+    } catch {
+      router.push("/auth/login");
+    }
+  };
+
   const assistantPlaceholder =
     status === "active" ? "Listening for your response..." : "Start a session to begin.";
   const lastLine = assistantLines[assistantLines.length - 1];
@@ -320,6 +374,12 @@ export default function Home() {
     assistantText && assistantText !== lastLine
       ? [...assistantLines, assistantText]
       : assistantLines;
+
+  useEffect(() => {
+    const container = transcriptRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }, [assistantScript.length]);
 
   return (
     <main className="app">
@@ -330,60 +390,96 @@ export default function Home() {
           <span className="pill">{connectionState}</span>
           <span className="pill mono">events {eventCount}</span>
           <span className="pill mono">report {reportStatus}</span>
+          <button className="btn ghost" onClick={handleSignOut}>
+            Sign out
+          </button>
         </div>
       </header>
 
       <section className="hero">
-        <div className="hero-copy">
-          <p className="eyebrow">Realtime formative professor</p>
-          <h1>Adaptive CS tutor that thinks out loud.</h1>
-          <p className="lead">
-            Socratic questioning with live voice. Hints, reframes, and new questions when
-            students get stuck.
-          </p>
+        <div className="hero-left">
+          <div className="hero-copy">
+            <p className="eyebrow">Realtime formative professor</p>
+            <h1>Adaptive CS tutor that thinks out loud.</h1>
+            <p className="lead">
+              Socratic questioning with live voice. Hints, reframes, and new questions when
+              students get stuck.
+            </p>
 
-          <div className="controls">
-            <button
-              className="btn primary"
-              onClick={startSession}
-              disabled={!sessionId || status === "connecting" || status === "active"}
-            >
-              Start session
-            </button>
-            <button
-              className="btn ghost"
-              onClick={() => stopSession("stopped")}
-              disabled={status !== "active" && status !== "connecting"}
-            >
-              Stop
-            </button>
-            <span className="pill mono">session {sessionId ?? "-"}</span>
+            <div className="controls">
+              <button
+                className="btn primary"
+                onClick={startSession}
+                disabled={!sessionId || status === "connecting" || status === "active"}
+              >
+                Start session
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() => stopSession("stopped")}
+                disabled={status !== "active" && status !== "connecting"}
+              >
+                Stop
+              </button>
+              <span className="pill mono">session {sessionId ?? "-"}</span>
+            </div>
+
+            {error ? <div className="error">{error}</div> : null}
           </div>
 
-          {error ? <div className="error">{error}</div> : null}
+          <div className="panels">
+            <div className="card transcript-panel">
+              <div className="panel-header">
+                <div>
+                  <div className="panel-title">Professor transcript</div>
+                  <div className="panel-subtitle">Live prompts and follow-ups</div>
+                </div>
+                <span className={`pill ${aiSpeaking ? "pill-active" : "pill-idle"}`}>
+                  {aiSpeaking ? "speaking" : "listening"}
+                </span>
+              </div>
+              {assistantScript.length === 0 ? (
+                <div className="ai-message muted">{assistantPlaceholder}</div>
+              ) : (
+                <div className="ai-script" ref={transcriptRef}>
+                  {assistantScript.map((line, index) => (
+                    <div
+                      key={`${line}-${index}`}
+                      className={`ai-message ${index === assistantScript.length - 1 ? "" : "muted"}`}
+                    >
+                      {line}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="card code-panel">
+              <div className="panel-header">
+                <div>
+                  <div className="panel-title">Code under discussion</div>
+                  <div className="panel-subtitle">AI-provided snippet to explain</div>
+                </div>
+                <div className="panel-actions">
+                  <span className="pill mono">python</span>
+                  <button className="btn ghost" onClick={sendCodeUpdate}>
+                    Send update
+                  </button>
+                </div>
+              </div>
+              <textarea
+                className="code-editor"
+                spellCheck={false}
+                value={codeSnippet}
+                onChange={(event) => setCodeSnippet(event.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="hero-visual">
+        <div className="hero-right">
           <div className={`portrait ${aiSpeaking ? "portrait-speaking" : ""}`}>
-            <img src="/cordova_avatar.png" alt="Professor Cordova" />
-          </div>
-
-          <div className="ai-card">
-            <div className="ai-label">Professor asks</div>
-            {assistantScript.length === 0 ? (
-              <div className="ai-message muted">{assistantPlaceholder}</div>
-            ) : (
-              <div className="ai-script">
-                {assistantScript.map((line, index) => (
-                  <div
-                    key={`${line}-${index}`}
-                    className={`ai-message ${index === assistantScript.length - 1 ? "" : "muted"}`}
-                  >
-                    {line}
-                  </div>
-                ))}
-              </div>
-            )}
+            <img src="/cordova.png" alt="Professor Cordova" />
           </div>
         </div>
       </section>

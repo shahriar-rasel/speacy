@@ -10,6 +10,8 @@ logs raw events, and displays student transcripts.
 ```
 OPENAI_API_KEY=sk-...
 TEACHER_PASSWORD=change-me
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 2. Install dependencies and run the dev server:
@@ -49,3 +51,10 @@ backend-generated summary.
 ## Teacher Dashboard
 
 Visit `/teacher`, enter the `TEACHER_PASSWORD`, and browse reports by session ID.
+
+## Supabase Auth
+
+- Login: `/auth/login`
+- Register: `/auth/register`
+- Confirm link: `/auth/confirm`
+- Instructor dashboard: `/dashboard`
