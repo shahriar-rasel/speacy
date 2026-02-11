@@ -197,12 +197,19 @@ function AssessmentContent() {
 
             setSessionStatus("connected");
 
-            // Trigger AI to start speaking (Greeting)
+            // Trigger AI to start speaking (Greeting) - with delay
+            const triggerGreeting = () => {
+                // Wait 2 seconds before speaking to let user settle in
+                setTimeout(() => {
+                    dc.send(JSON.stringify({ type: "response.create", response: { modalities: ["text", "audio"] } }));
+                }, 2000);
+            };
+
             if (dc.readyState === "open") {
-                dc.send(JSON.stringify({ type: "response.create", response: { modalities: ["text", "audio"] } }));
+                triggerGreeting();
             } else {
                 dc.onopen = () => {
-                    dc.send(JSON.stringify({ type: "response.create", response: { modalities: ["text", "audio"] } }));
+                    triggerGreeting();
                 };
             }
 

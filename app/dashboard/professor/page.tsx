@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Users, BookOpen, Plus, TrendingUp, Calendar, Zap, FileText } from "lucide-react";
 import Link from "next/link";
+import LogoutButton from "@/components/LogoutButton";
 import ExamCreationForm from "./ExamCreationForm";
 
 export default async function ProfessorDashboard() {
@@ -59,7 +60,7 @@ export default async function ProfessorDashboard() {
 
             <main className="flex-1 w-full max-w-7xl mx-auto z-10 flex flex-col gap-8">
                 {/* Header */}
-                <div className="flex items-end justify-between py-8">
+                <div className="flex items-end justify-between py-8 relative z-50">
                     <div>
                         <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-200 to-indigo-200 tracking-tight mb-2">
                             Professor Dashboard
@@ -68,9 +69,12 @@ export default async function ProfessorDashboard() {
                             Manage your class, create exams, and track student performance.
                         </p>
                     </div>
-                    <div className="px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium flex items-center gap-2">
-                        <Users size={16} />
-                        <span>{totalStudents} Active Students</span>
+                    <div className="flex items-center gap-3">
+                        <div className="px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium flex items-center gap-2">
+                            <Users size={16} />
+                            <span>{totalStudents} Active Students</span>
+                        </div>
+                        <LogoutButton className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/20" />
                     </div>
                 </div>
 

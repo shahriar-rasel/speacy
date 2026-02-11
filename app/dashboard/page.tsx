@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Mic, Code, TrendingUp, History, Award, Calendar, ArrowRight, Zap } from "lucide-react";
 import Link from "next/link";
+import LogoutButton from "@/components/LogoutButton";
 
 export default async function DashboardPage() {
     const supabase = await createClient();
@@ -60,7 +61,7 @@ export default async function DashboardPage() {
 
             <main className="flex-1 w-full max-w-6xl mx-auto z-10 flex flex-col gap-8">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 py-8">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 py-8 relative z-50">
                     <div>
                         <h1 className="text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400 tracking-tight mb-2">
                             Dashboard
@@ -74,6 +75,7 @@ export default async function DashboardPage() {
                             <Zap size={14} className="text-yellow-500 fill-yellow-500" />
                             <span>Level 1</span>
                         </div>
+                        <LogoutButton className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/20" />
                     </div>
                 </div>
 
