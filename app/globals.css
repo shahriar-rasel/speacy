@@ -1,20 +1,125 @@
-
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  /* Deep Space Theme */
+  --background: #050510;
+  /* Darker, slightly blue-tinted black */
+  --foreground: #e0e0ff;
+  /* Soft blue-white */
+
+  --primary: #8b5cf6;
+  /* Violet */
+  --primary-foreground: #ffffff;
+
+  --secondary: #0ea5e9;
+  /* Sky Blue */
+  --secondary-foreground: #ffffff;
+
+  --accent: #d946ef;
+  /* Magenta Neon */
+  --accent-foreground: #ffffff;
+
+  --card: rgba(30, 30, 40, 0.6);
+  --card-foreground: #e0e0ff;
+
+  --border: rgba(255, 255, 255, 0.1);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-card: var(--card);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Animations */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse-glow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-orb-breath: orb-breath 4s ease-in-out infinite alternate;
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 20px var(--primary);
+    }
+
+    50% {
+      opacity: 0.7;
+      box-shadow: 0 0 40px var(--accent);
+    }
+  }
+
+  @keyframes orb-breath {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 30px var(--primary);
+    }
+
+    100% {
+      transform: scale(1.1);
+      box-shadow: 0 0 60px var(--accent);
+    }
+  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  background-image:
+    radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.15) 0%, transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.15) 0%, transparent 25%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(20, 20, 35, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

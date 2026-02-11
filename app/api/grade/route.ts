@@ -69,7 +69,7 @@ export async function POST(req: Request) {
             .update({
                 total_score: gradeData.score,
                 feedback: JSON.stringify(gradeData), // Storing full JSON in feedback text column for now, or could split fields
-                status: 'completed'
+                status: 'graded'
             })
             .eq("id", assessmentId);
 

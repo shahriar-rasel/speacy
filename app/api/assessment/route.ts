@@ -11,7 +11,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { topic } = await req.json();
+    const { topic, assignmentId } = await req.json();
 
     try {
         const { data, error } = await supabase
@@ -20,6 +20,7 @@ export async function POST(req: Request) {
                 topic,
                 student_name: user.email, // Using email as name for now
                 status: "pending",
+                assignment_id: assignmentId // Optional: link to assignment if provided
             })
             .select()
             .single();
