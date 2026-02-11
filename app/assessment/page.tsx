@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Transcript } from "@/components/Transcript";
 import { CodePanel } from "@/components/CodePanel";
@@ -9,7 +9,7 @@ import { MOCK_TRANSCRIPT, MOCK_CODE_SQL, MOCK_CODE_PYTHON } from "@/lib/data";
 import { Mic, Square, Settings, User, ArrowLeft, Zap } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
-export default function AssessmentPage() {
+function AssessmentContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const assignmentIdParam = searchParams.get('assignmentId');
@@ -373,5 +373,17 @@ export default function AssessmentPage() {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function AssessmentPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex h-screen items-center justify-center bg-background text-zinc-400">
+                Loading assessment...
+            </div>
+        }>
+            <AssessmentContent />
+        </Suspense>
     );
 }
