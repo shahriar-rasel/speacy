@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { buildGraderPrompt } from "@/lib/prompts";
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -27,7 +28,8 @@ export async function POST(req: Request) {
         const messagesToInsert = messages.map((msg: any) => ({
             assessment_id: assessmentId,
             role: msg.role,
-            content: msg.content
+            content: msg.content,
+            metadata: msg.metadata // Save timestamps and latency
         }));
 
         const { error: msgError } = await supabase.from("messages").insert(messagesToInsert);
@@ -44,14 +46,7 @@ export async function POST(req: Request) {
             messages: [
                 {
                     role: "system",
-                    content: `You are an expert grader. Analyze the following oral exam transcript.
-          Provide the output in JSON format with the following fields:
-          - score (0-100)
-          - feedback (general feedback/summary)
-          - strengths (array of strings)
-          - weaknesses (array of strings)
-          - nuances (array of strings, specific small details they missed or got right)
-          `,
+                    content: buildGraderPrompt(),
                 },
                 {
                     role: "user",

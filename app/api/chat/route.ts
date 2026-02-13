@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { buildExaminerPrompt } from "@/lib/prompts";
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -50,13 +51,7 @@ export async function POST(req: Request) {
             messages: [
                 {
                     role: "system",
-                    content: `You are an examiner conducting an oral exam on ${topic}. 
-              Your goal is to assess the student's understanding. 
-              Ask one question at a time. 
-              Keep your responses concise (under 2-3 sentences) to maintain a conversational flow.
-              If the student answers correctly, acknowledge it briefly and ask a follow-up or move to the next concept.
-              If the student is incorrect, gently correct them and ask a simpler question to build understanding.
-              Do not give long lectures.`,
+                    content: buildExaminerPrompt({ topic }),
                 },
                 ...history,
             ],

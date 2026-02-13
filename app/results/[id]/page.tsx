@@ -143,6 +143,59 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                                 </ul>
                             </div>
                         )}
+
+                        {/* Detailed Metrics */}
+                        {(feedbackData.fluency_score !== undefined || feedbackData.pacing_score !== undefined) && (
+                            <div className="md:col-span-2 glass-panel rounded-2xl p-8 border border-white/10">
+                                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                                    <TrendingUp className="text-blue-400" />
+                                    Detailed Analysis
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* Fluency Score */}
+                                    {feedbackData.fluency_score !== undefined && (
+                                        <div className="bg-white/5 rounded-xl p-6 border border-white/5">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-zinc-400 font-bold uppercase text-xs tracking-wider">Fluency</span>
+                                                <span className={`text-xl font-black ${feedbackData.fluency_score >= 80 ? 'text-emerald-400' : 'text-zinc-300'}`}>
+                                                    {feedbackData.fluency_score}/100
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-black/50 rounded-full h-2 overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${feedbackData.fluency_score >= 80 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                                                    style={{ width: `${feedbackData.fluency_score}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-zinc-500 mt-2">
+                                                Based on flow, lack of filler words, and sentence structure.
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Pacing Score */}
+                                    {feedbackData.pacing_score !== undefined && (
+                                        <div className="bg-white/5 rounded-xl p-6 border border-white/5">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-zinc-400 font-bold uppercase text-xs tracking-wider">Pacing</span>
+                                                <span className={`text-xl font-black ${feedbackData.pacing_score >= 80 ? 'text-emerald-400' : 'text-zinc-300'}`}>
+                                                    {feedbackData.pacing_score}/100
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-black/50 rounded-full h-2 overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${feedbackData.pacing_score >= 80 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                                                    style={{ width: `${feedbackData.pacing_score}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-zinc-500 mt-2">
+                                                Based on your response times (latency) and speaking rhythm.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -164,7 +217,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                         <ArrowRight size={18} />
                     </Link>
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }
