@@ -20,7 +20,7 @@ export default function LogoutButton({ className }: { className?: string }) {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 transition-colors shadow-lg z-[100] relative border border-white/20 ${className}`}
         >
             <LogOut size={16} />
-            <span>Logout</span>
+            <span>Sign out</span>
         </button>
     );
 }
