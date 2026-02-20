@@ -1,7 +1,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { Users, BookOpen, Plus, TrendingUp, Calendar, Zap, FileText } from "lucide-react";
+import { Users, BookOpen, Plus, TrendingUp, Calendar, Zap, FileText, UserCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 import ExamCreationForm from "./ExamCreationForm";
@@ -39,7 +39,7 @@ export default async function ProfessorDashboard() {
     // For now, let's fetch ALL assessments in the system to simulate "Class" view
     const { data: allAssessments } = await supabase
         .from("assessments")
-        .select("total_score, status, topic")
+        .select("total_score, status, topic, student_name")
         .order("created_at", { ascending: false });
 
     const totalStudents = new Set(allAssessments?.map((a: any) => a.student_name)).size || 0;
@@ -48,6 +48,24 @@ export default async function ProfessorDashboard() {
     const avgScore = completedExams.length > 0
         ? Math.round(completedExams.reduce((acc: number, curr: any) => acc + (curr.total_score || 0), 0) / completedExams.length)
         : 0;
+
+    // Build student list with aggregated stats
+    const studentMap = new Map<string, { examCount: number; totalScore: number; gradedCount: number }>();
+    allAssessments?.forEach((a: any) => {
+        if (!a.student_name) return;
+        const existing = studentMap.get(a.student_name) || { examCount: 0, totalScore: 0, gradedCount: 0 };
+        existing.examCount++;
+        if (a.status === 'graded' || a.status === 'completed') {
+            existing.totalScore += a.total_score || 0;
+            existing.gradedCount++;
+        }
+        studentMap.set(a.student_name, existing);
+    });
+    const students = Array.from(studentMap.entries()).map(([email, stats]) => ({
+        email,
+        examCount: stats.examCount,
+        avgScore: stats.gradedCount > 0 ? Math.round(stats.totalScore / stats.gradedCount) : 0,
+    }));
 
     return (
         <div className="flex min-h-screen flex-col p-6 bg-black text-zinc-100 font-sans relative overflow-hidden">
@@ -159,6 +177,57 @@ export default async function ProfessorDashboard() {
                                     <p>No assignments created yet.</p>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Students Section */}
+                        <div className="flex flex-col gap-6">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold flex items-center gap-2">
+                                    <UserCircle size={20} className="text-blue-400" />
+                                    Students
+                                </h2>
+                                <span className="text-xs text-zinc-500 font-mono">{students.length} total</span>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/5 bg-zinc-900/30 overflow-hidden">
+                                {students.length > 0 ? (
+                                    <div className="divide-y divide-white/5">
+                                        {students.map((student) => (
+                                            <Link
+                                                key={student.email}
+                                                href={`/dashboard/professor/students/${encodeURIComponent(student.email)}`}
+                                                className="p-5 flex items-center justify-between hover:bg-white/5 transition-colors group"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/30 to-blue-500/30 border border-white/10 flex items-center justify-center text-white font-bold text-sm">
+                                                        {student.email.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-white group-hover:text-purple-300 transition-colors">{student.email}</h4>
+                                                        <p className="text-xs text-zinc-500">{student.examCount} exam{student.examCount !== 1 ? 's' : ''} taken</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="text-right">
+                                                        <span className="block text-xs text-zinc-500">Avg Score</span>
+                                                        <span className={`text-lg font-bold ${student.avgScore >= 80 ? 'text-green-400' :
+                                                                student.avgScore >= 60 ? 'text-yellow-400' :
+                                                                    student.avgScore > 0 ? 'text-red-400' : 'text-zinc-500'
+                                                            }`}>
+                                                            {student.avgScore > 0 ? `${student.avgScore}%` : '-'}
+                                                        </span>
+                                                    </div>
+                                                    <ArrowRight size={16} className="text-zinc-600 group-hover:text-purple-400 transition-colors" />
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-12 text-center text-zinc-500">
+                                        <p>No students have taken exams yet.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 

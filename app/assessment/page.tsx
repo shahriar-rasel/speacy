@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Transcript } from "@/components/Transcript";
 import { CodePanel } from "@/components/CodePanel";
 import { MOCK_TRANSCRIPT, MOCK_CODE_SQL, MOCK_CODE_PYTHON } from "@/lib/data";
-import { Mic, Square, Settings, User, ArrowLeft, Zap } from "lucide-react";
+import { Mic, Square, Settings, User, ArrowLeft, Zap, CheckCircle, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { buildExaminerPrompt } from "@/lib/prompts";
 
@@ -26,10 +26,12 @@ function AssessmentContent() {
     const [assessmentId, setAssessmentId] = useState<string | null>(null);
     const [sessionStatus, setSessionStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
     const [assignmentData, setAssignmentData] = useState<any>(null);
+    const [showThankYou, setShowThankYou] = useState(false);
 
     const [messages, setMessages] = useState<any[]>(MOCK_TRANSCRIPT);
     const messagesRef = useRef(messages);
     const assessmentIdRef = useRef<string | null>(null);
+    const sessionStartTimeRef = useRef<number>(0);
 
     useEffect(() => {
         assessmentIdRef.current = assessmentId;
@@ -81,6 +83,7 @@ function AssessmentContent() {
         try {
             setSessionStatus("connecting");
             setMessages([]); // Clear previous transcript
+            sessionStartTimeRef.current = Date.now();
 
             const topic = assignmentData?.topic || "Lists and Tuples";
 
@@ -258,38 +261,62 @@ function AssessmentContent() {
         pcRef.current?.close();
         pcRef.current = null;
         setSessionStatus("disconnected");
+        setShowThankYou(true);
 
         const currentAssessmentId = assessmentIdRef.current;
+        const currentMessages = messagesRef.current;
 
-        // Trigger Grading
+        // Compute session-level metrics
+        const sessionEndTime = Date.now();
+        const sessionDurationMs = sessionStartTimeRef.current > 0
+            ? sessionEndTime - sessionStartTimeRef.current
+            : 0;
+
+        const assistantMessages = currentMessages?.filter((m: any) => m.role === 'assistant') || [];
+        const userMessages = currentMessages?.filter((m: any) => m.role === 'user') || [];
+
+        const assistantWordCount = assistantMessages.reduce((sum: number, m: any) => sum + (m.content?.split(/\s+/).length || 0), 0);
+        const userWordCount = userMessages.reduce((sum: number, m: any) => sum + (m.content?.split(/\s+/).length || 0), 0);
+
+        const avgLatency = userMessages.length > 0
+            ? userMessages.reduce((sum: number, m: any) => sum + (m.metadata?.latency || 0), 0) / userMessages.length
+            : 0;
+
+        const sessionMetrics = {
+            mode,
+            sessionStartTime: sessionStartTimeRef.current,
+            sessionEndTime,
+            sessionDurationMs,
+            questionCount: assistantMessages.length,
+            responseCount: userMessages.length,
+            assistantWordCount,
+            userWordCount,
+            talkRatio: assistantWordCount > 0 ? (userWordCount / assistantWordCount).toFixed(2) : '0',
+            avgResponseLatencyMs: Math.round(avgLatency),
+        };
+
+        // Trigger Grading in background
         if (currentAssessmentId) {
-            if (!messagesRef.current || messagesRef.current.length === 0) {
-                alert("Error: Transcript is empty. Please contact support.");
-                return;
-            }
-
-            try {
-                const response = await fetch("/api/grade", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        assessmentId: currentAssessmentId,
-                        messages: messagesRef.current
-                    })
-                });
-
-                if (response.ok) {
-                    router.push(`/results/${currentAssessmentId}`);
-                } else {
-                    const errData = await response.json();
-                    alert(`Failed to grade: ${errData.error || "Unknown error"}`);
+            if (currentMessages && currentMessages.length > 0) {
+                try {
+                    await fetch("/api/grade", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            assessmentId: currentAssessmentId,
+                            messages: currentMessages,
+                            sessionMetrics
+                        })
+                    });
+                } catch (e) {
+                    console.error("Error submitting grade:", e);
                 }
-            } catch (e) {
-                console.error("Error submitting grade:", e);
-                alert("Error submitting grade. Check console.");
             }
-        } else {
-            console.error("No assessment ID found to grade");
         }
+
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+            router.push('/dashboard');
+        }, 3000);
     };
 
 
@@ -313,6 +340,47 @@ function AssessmentContent() {
             setActiveLanguage("sql");
         }
     };
+
+    if (showThankYou) {
+        return (
+            <div className="flex h-screen bg-background overflow-hidden font-sans items-center justify-center relative">
+                {/* Animated background */}
+                <div className="absolute inset-0 z-0 pointer-events-none">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,_rgba(139,92,246,0.15)_0%,_transparent_60%)]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,_rgba(59,130,246,0.1)_0%,_transparent_50%)]" />
+                </div>
+
+                <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-lg animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    {/* Success icon */}
+                    <div className="relative mb-8">
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500/20 to-green-500/20 border border-emerald-500/30 flex items-center justify-center shadow-[0_0_40px_rgba(16,185,129,0.2)]">
+                            <CheckCircle size={48} className="text-emerald-400" />
+                        </div>
+                        <Sparkles size={20} className="absolute -top-2 -right-2 text-yellow-400 animate-pulse" />
+                        <Sparkles size={14} className="absolute -bottom-1 -left-3 text-purple-400 animate-pulse delay-300" />
+                    </div>
+
+                    {/* Thank you message */}
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400 mb-3">
+                        Thank You!
+                    </h1>
+                    <p className="text-lg text-zinc-300 mb-2">
+                        Thank you for completing this assessment.
+                    </p>
+                    <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
+                        Please bear with us as we continue to improve this system.
+                        Your grade will be ready to view on your dashboard in a couple of minutes.
+                    </p>
+
+                    {/* Redirect notice */}
+                    <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                        <span className="text-sm text-zinc-400">Redirecting you to the dashboard soon</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen bg-background overflow-hidden font-sans">
@@ -388,7 +456,7 @@ function AssessmentContent() {
                                 </div>
                             </div>
 
-                            <Transcript messages={messages} />
+                            <Transcript messages={mode === 'hume' ? messages.filter(m => m.role === 'assistant') : messages} />
                             <div ref={messagesEndRef} />
                         </div>
 
@@ -429,6 +497,7 @@ function AssessmentContent() {
                                 })}
                                 onAssessmentComplete={endSession}
                                 onStart={async () => {
+                                    sessionStartTimeRef.current = Date.now();
                                     const topic = assignmentData?.topic || "Lists and Tuples";
                                     const assessmentRes = await fetch("/api/assessment", {
                                         method: "POST",

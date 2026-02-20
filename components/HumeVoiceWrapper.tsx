@@ -2,8 +2,8 @@
 "use client";
 
 import { VoiceProvider, useVoice, VoiceReadyState } from "@humeai/voice-react";
-import { useEffect, useRef, useState } from "react";
-import { Mic, Square } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Mic, Square, AlertTriangle } from "lucide-react";
 
 // Access token fetcher
 const fetchAccessToken = async () => {
@@ -28,21 +28,41 @@ interface HumeVoiceInnerProps extends HumeVoiceWrapperProps {
 
 function HumeVoiceInner({ onMessage, onStatusChange, accessToken, configId, instructions, onAssessmentComplete, onStart }: HumeVoiceInnerProps) {
     // @ts-ignore - Ignore potential signature mismatch for connect/disconnect
-    const { connect, disconnect, readyState, messages, sendToolMessage } = useVoice();
+    const { connect, disconnect, readyState, messages, sendToolMessage, status, error } = useVoice();
     const [isConnected, setIsConnected] = useState(false);
+    const [unexpectedDisconnect, setUnexpectedDisconnect] = useState(false);
+    const wasConnectedRef = useRef(false);
 
-    // Sync connection state with parent
+    // Sync connection state with parent + detect unexpected disconnects
     useEffect(() => {
         let status = 'disconnected';
-        if (readyState === VoiceReadyState.OPEN) status = 'connected';
-        else if (readyState === VoiceReadyState.CONNECTING) status = 'connecting';
+        if (readyState === VoiceReadyState.OPEN) {
+            status = 'connected';
+            wasConnectedRef.current = true;
+            setUnexpectedDisconnect(false);
+        } else if (readyState === VoiceReadyState.CONNECTING) {
+            status = 'connecting';
+        } else if (wasConnectedRef.current && !isEndingRef.current) {
+            // Connection dropped unexpectedly (not via end_assessment or manual end)
+            console.warn('Hume session disconnected unexpectedly');
+            setUnexpectedDisconnect(true);
+            wasConnectedRef.current = false;
+
+            // Auto-submit for grading so the transcript isn't lost
+            if (onAssessmentComplete) {
+                setTimeout(() => {
+                    onAssessmentComplete();
+                }, 1000);
+            }
+        }
 
         onStatusChange(status);
         setIsConnected(readyState === VoiceReadyState.OPEN);
-    }, [readyState, onStatusChange]);
+    }, [readyState, onStatusChange, onAssessmentComplete]);
 
     // Send new messages to parent
     const lastMessageCountRef = useRef(0);
+    const lastAssistantEndTimeRef = useRef(0);
     useEffect(() => {
         if (messages.length > lastMessageCountRef.current) {
             // Get new messages
@@ -52,13 +72,26 @@ function HumeVoiceInner({ onMessage, onStatusChange, accessToken, configId, inst
                 if (msg.type === 'user_message' || msg.type === 'assistant_message') {
                     const role = msg.type === 'user_message' ? 'user' : 'assistant';
                     const content = msg.message?.content || "";
+                    const now = Date.now();
 
-                    // Capture prosody if available (in user_message)
-                    let metadata = {};
-                    if (msg.type === 'user_message' && msg.models?.prosody?.scores) {
-                        metadata = {
-                            prosody: msg.models.prosody.scores
-                        };
+                    // Build metadata with timestamps
+                    let metadata: any = {
+                        startTime: msg.receivedAt ? new Date(msg.receivedAt).getTime() : now,
+                        endTime: now,
+                    };
+
+                    if (msg.type === 'user_message') {
+                        // Compute latency: time since last assistant message ended
+                        if (lastAssistantEndTimeRef.current > 0) {
+                            metadata.latency = now - lastAssistantEndTimeRef.current;
+                        }
+                        // Capture prosody if available
+                        if (msg.models?.prosody?.scores) {
+                            metadata.prosody = msg.models.prosody.scores;
+                        }
+                    } else {
+                        // Track when assistant finishes speaking
+                        lastAssistantEndTimeRef.current = now;
                     }
 
                     if (content) {
@@ -144,27 +177,40 @@ function HumeVoiceInner({ onMessage, onStatusChange, accessToken, configId, inst
     };
 
     return (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 p-2 pr-6 pl-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl z-30 transition-all duration-500 hover:scale-105 hover:border-purple-500/30">
-            <button
-                onClick={toggleSession}
-                className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-500 ${isConnected
-                    ? 'bg-red-500 text-white animate-orb-breath shadow-[0_0_30px_rgba(239,68,68,0.4)]'
-                    : readyState === VoiceReadyState.CONNECTING
-                        ? 'bg-zinc-800 text-zinc-500 cursor-wait'
-                        : 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:shadow-[0_0_30px_rgba(124,58,237,0.6)]'
-                    }`}
-            >
-                {isConnected ? <Square size={20} fill="currentColor" /> : <Mic size={24} />}
-            </button>
-            <div className="flex flex-col">
-                <span className="text-sm font-bold text-white">
-                    {isConnected ? "Listening..." : readyState === VoiceReadyState.CONNECTING ? "Connecting..." : "Start Exam (Hume)"}
-                </span>
-                <span className="text-xs text-zinc-400">
-                    {isConnected ? "Speak clearly" : "Tap to begin"}
-                </span>
+        <>
+            {/* Unexpected disconnect banner */}
+            {unexpectedDisconnect && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 backdrop-blur-xl shadow-lg animate-in fade-in slide-in-from-top-2">
+                    <AlertTriangle size={18} className="text-yellow-400 shrink-0" />
+                    <div>
+                        <p className="text-sm font-bold text-yellow-300">Connection lost</p>
+                        <p className="text-xs text-yellow-400/70">The session ended unexpectedly. Your transcript is being submitted for grading.</p>
+                    </div>
+                </div>
+            )}
+
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 p-2 pr-6 pl-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl z-30 transition-all duration-500 hover:scale-105 hover:border-purple-500/30">
+                <button
+                    onClick={toggleSession}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-500 ${isConnected
+                        ? 'bg-red-500 text-white animate-orb-breath shadow-[0_0_30px_rgba(239,68,68,0.4)]'
+                        : readyState === VoiceReadyState.CONNECTING
+                            ? 'bg-zinc-800 text-zinc-500 cursor-wait'
+                            : 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:shadow-[0_0_30px_rgba(124,58,237,0.6)]'
+                        }`}
+                >
+                    {isConnected ? <Square size={20} fill="currentColor" /> : <Mic size={24} />}
+                </button>
+                <div className="flex flex-col">
+                    <span className="text-sm font-bold text-white">
+                        {isConnected ? "Listening..." : readyState === VoiceReadyState.CONNECTING ? "Connecting..." : "Start Exam (Hume)"}
+                    </span>
+                    <span className="text-xs text-zinc-400">
+                        {isConnected ? "Speak clearly" : "Tap to begin"}
+                    </span>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
 
@@ -204,6 +250,13 @@ export default function HumeVoiceWrapper(props: HumeVoiceWrapperProps) {
     return (
         <VoiceProvider
             onToolCall={handleToolCall}
+            clearMessagesOnDisconnect={false}
+            onError={(error) => {
+                console.error('Hume VoiceProvider error:', error.type, error.reason, error.message, error.error);
+            }}
+            onClose={(event) => {
+                console.warn('Hume VoiceProvider connection closed. Code:', event?.code, 'Reason:', event?.reason);
+            }}
         >
             <HumeVoiceInner {...props} accessToken={accessToken} configId={configId} />
         </VoiceProvider>

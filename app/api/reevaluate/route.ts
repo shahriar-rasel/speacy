@@ -9,6 +9,7 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
     const supabase = await createClient();
+
     const {
         data: { user },
     } = await supabase.auth.getUser();
@@ -17,48 +18,41 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { assessmentId, messages, sessionMetrics } = await req.json();
+    // Verify professor role
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profile?.role !== 'professor') {
+        return NextResponse.json({ error: "Forbidden: Professors only" }, { status: 403 });
+    }
+
+    const { assessmentId } = await req.json();
+
+    if (!assessmentId) {
+        return NextResponse.json({ error: "assessmentId is required" }, { status: 400 });
+    }
 
     try {
-        if (!messages || messages.length === 0) {
-            return NextResponse.json({ error: "No messages found" }, { status: 400 });
-        }
-
-        // Save messages to DB
-        const messagesToInsert = messages.map((msg: any) => ({
-            assessment_id: assessmentId,
-            role: msg.role,
-            content: msg.content,
-            metadata: msg.metadata // Save timestamps, latency, prosody
-        }));
-
-        const { error: msgError } = await supabase.from("messages").insert(messagesToInsert);
+        // Fetch existing messages for this assessment
+        const { data: messages, error: msgError } = await supabase
+            .from("messages")
+            .select("role, content, metadata")
+            .eq("assessment_id", assessmentId)
+            .order("created_at", { ascending: true });
 
         if (msgError) {
-            console.error("Error saving messages:", msgError);
+            console.error("Error fetching messages:", msgError);
+            return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
         }
 
-        // Save session metrics to assessment record BEFORE grading
-        if (sessionMetrics) {
-            const { error: metricsError } = await supabase
-                .from("assessments")
-                .update({
-                    session_metrics: sessionMetrics,
-                    status: 'grading'
-                })
-                .eq("id", assessmentId);
-
-            if (metricsError) {
-                console.error("Error saving session metrics:", metricsError);
-            }
+        if (!messages || messages.length === 0) {
+            return NextResponse.json({ error: "No messages found for this assessment" }, { status: 404 });
         }
 
-        // Call OpenAI to grade — include session metrics for richer context
-        const graderInput = {
-            messages,
-            ...(sessionMetrics ? { sessionMetrics } : {})
-        };
-
+        // Call OpenAI to re-grade
         const completion = await openai.chat.completions.create({
             model: "gpt-5",
             messages: [
@@ -68,7 +62,7 @@ export async function POST(req: Request) {
                 },
                 {
                     role: "user",
-                    content: JSON.stringify(graderInput)
+                    content: JSON.stringify(messages)
                 }
             ],
             response_format: { type: "json_object" }
@@ -76,7 +70,7 @@ export async function POST(req: Request) {
 
         const gradeData = JSON.parse(completion.choices[0].message.content || "{}");
 
-        // Update Assessment in DB with grade
+        // Update assessment with new grade
         const { error } = await supabase
             .from("assessments")
             .update({
@@ -94,7 +88,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, grade: gradeData });
 
     } catch (error) {
-        console.error(error);
+        console.error("Reevaluation error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
